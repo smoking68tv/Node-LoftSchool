@@ -17,7 +17,7 @@ const readDir = (base, level) => {
                 } else {
                     readFolders(base, level);
                 }
-            })
+            });
         } else {
             readFolders(base, level);
         }
@@ -33,7 +33,7 @@ const readFolders = (base, level) => {
         files.forEach(item => {
             let localBase = path.join(base, item);
             fs.stat(localBase, (err, stats) => {
-                if (!stats.isFile()) {
+                if(!stats.isFile()) {
                     readDir(localBase, level + 1);
                 } else {
                     readCollection({base: localBase, name: item});
@@ -67,6 +67,13 @@ const copyFile = (base, name, newPath) => {
                     console.log(err);
                     return;
                 }
+                fs.access(base.replace(name, ''), err => {
+                    fs.rmdir(base.replace(name, ''), err => {
+                        if(err) {
+                            return;
+                        }
+                    });
+                });
             });
         }
         if(err) {
