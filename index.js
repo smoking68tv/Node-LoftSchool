@@ -23,6 +23,51 @@ const readDir = (base, level) => {
         }
     });
 };
+const deleteDir = (base, level) => {
+    fs.readdir(base, (err, files) => {
+        files.forEach(item => {
+            let localBase = path.join(base, item);
+            fs.stat(localBase, (err, stats) => {
+                if(!stats.isFile()) {
+                    fs.rmdir(localBase, err => {
+                        if(err) {
+                            deleteDir(localBase, level + 1);                            
+                        }
+                    })
+                } else {
+                    if(deleteFolder) {
+                        fs.unlink(localBase, err => {
+                            if(err) {
+                                console.log(err);
+                                return;
+                            } else {
+
+                            }
+                            // fs.access(base.replace(name, ''), err => {
+                            //     fs.rmdir(base.replace(name, ''), err => {
+                            //         if(err) {
+                            //             return;
+                            //         }
+                            //     });
+                            // });
+                        });
+                    }
+                }
+            });
+        });
+    });
+    // fs.access(base, err => {
+    //     if(err) {
+    //         return;
+    //     } else {
+    //         fs.rmdir(base, err => {
+    //             if(err) {
+    //                 return;
+    //             }
+    //         })
+    //     }
+    // })
+};
 
 const readFolders = (base, level) => {
     fs.readdir(base, (err, files) => {
@@ -61,21 +106,21 @@ const readCollection = ({base, name}) => {
 
 const copyFile = (base, name, newPath) => {
     fs.link(base, newPath, err => {
-        if(deleteFolder) {
-            fs.unlink(base, err => {
-                if(err) {
-                    console.log(err);
-                    return;
-                }
-                fs.access(base.replace(name, ''), err => {
-                    fs.rmdir(base.replace(name, ''), err => {
-                        if(err) {
-                            return;
-                        }
-                    });
-                });
-            });
-        }
+        // if(deleteFolder) {
+        //     fs.unlink(base, err => {
+        //         if(err) {
+        //             console.log(err);
+        //             return;
+        //         }
+        //         fs.access(base.replace(name, ''), err => {
+        //             fs.rmdir(base.replace(name, ''), err => {
+        //                 if(err) {
+        //                     return;
+        //                 }
+        //             });
+        //         });
+        //     });
+        // }
         if(err) {
             console.log(`${name} уже в коллекции`);
             return;
@@ -84,3 +129,6 @@ const copyFile = (base, name, newPath) => {
 };
   
 readDir(base, 0);
+if(deleteFolder) {
+    deleteDir(base, 0);
+}
