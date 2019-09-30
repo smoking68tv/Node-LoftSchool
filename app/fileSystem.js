@@ -1,68 +1,70 @@
-const fs = require('mz/fs');
 const path = require('path');
+const rimraf = require('rimraf');
+const fs = require('mz/fs');
+const argv = require('yargs')
+  .example('node index.js --entry input --output output --delete')
+  .demandOption(['entry', 'output'])
+  .argv;
 
-const baseCollection = process.argv[2];
-const base = process.argv[3];
-const deleteFolder = process.argv[4] && process.argv[4] === 'true' ? true : false;
-
-const createCollection = async (from, to, isDelete) => {
-    try {
-        await fs.access(to);
-        return readDir(from, to);
-    } catch(e) {
-        await fs.mkdir(to);
-        await createCollection(from, to, isDelete);
-    }
-};
-
-const readDir = (from,to) => {
+const getFolders = base => {
     return new Promise((resolve, reject) => {
-        let level = 1,
-        allPromises = [];
-        const getFolders = async (baseItem) => {
+        let result = {},
+            level = 1;
+        const readDir = async dir => {
             try {
-                let content = await fs.readdir(baseItem);
-
-                content.forEach(async item => {
-                    let localBase = path.join(baseItem, item);
-                        stats = await fs.lstatSync(localBase);
-
-                    if(!stats.isFile()) {
+                let contents = await fs.readdir(dir);
+                contents.forEach(item => {
+                    let localBase = path.join(dir, item);
+                    if (!fs.lstatSync(localBase).isFile()) {
                         level++;
-                        getFolders(localBase)
-                        // console.log(allPromises)
-                        // удалять пустые папки
+                        readDir(localBase);
                     } else {
-                        changeCollection({
-                            base: localBase, 
-                            name: item
-                        });
+                        let folderName = item[0].toUpperCase(),
+                            fileObj = {
+                                name: item,
+                                base: localBase
+                            };
+                        result[folderName] ? result[folderName].push(fileObj) : result[folderName] = [fileObj];
                     }
                 });
-                
-
                 level--;
-                console.log(baseItem,level)
-                level === 0 ? resolve() : {};
+                !level ? resolve(result) : {};
             } catch(e) {
                 console.log(e);
-            } 
-            
+            }
         };
-        getFolders(from);
+        readDir(base);
     });
 };
 
-const changeCollection = async ({base, name}) => {
-    let folderName = name.slice()[0].toUpperCase(),
-        localBaseCollection = path.join(baseCollection, folderName),
-        newPath = path.join(localBaseCollection, name);
+const asyncForEach = (array, callback) => {
+    array.forEach(async(val, idx, array) => {
+        await callback(val, idx, array);
+    });
+};
 
-        await fs.access(localBaseCollection).catch(async () => await fs.mkdir(localBaseCollection));
-        await fs.link(base, newPath).catch(() => console.log(`${name} уже в коллекции`));
-}
+const copyFiles = async (data, output) => {
+    try {
+        await fs.mkdir(output);
+        await asyncForEach(Object.keys(data), async key => {
+            let newPath = path.join(output, key),
+                items = data[key];
+                
+            await fs.mkdir(newPath);
+            await asyncForEach(items, async item => {
+                await fs.copyFile(item.base, path.join(newPath, item.name));
+            });
+        });
+    } catch(e) {
+        console.log(e);
+    } 
+};
 
-createCollection(base, baseCollection, deleteFolder)
-    // .then(() => {
-    //     console.log('Success');
-    // });
+const createCollection = async (entry, output, isDelete) => {
+    return getFolders(entry)
+        .then(async folders => {
+            await copyFiles(folders, output);
+            isDelete ? rimraf(entry, () => {}) : {};
+        });
+};
+createCollection(argv.entry, argv.output, argv.delete);
